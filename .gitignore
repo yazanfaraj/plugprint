@@ -1,0 +1,18 @@
+# Private WiFi passwords — never upload
+firmware/plugprint/secrets.h
+
+# Build output and editor clutter
+build/
+.vscode/
+.pio/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Big datasets stay off GitHub (download separately)
+data/raw/
+
+# Windows / OneDrive clutter
+Thumbs.db
+desktop.ini
+~$*
