@@ -7,6 +7,7 @@
  *      i.e. exactly 10 mains cycles (200 ms)                                      -> D17
  *   3. Turns the snapshot into Vrms, Irms, real power, apparent power, PF          -> D18
  *   4. Prints the result plus a timing report to the Serial Monitor
+ *   5. Sends the result over WiFi to the laptop dashboard (UDP broadcast)      -> D23
  *
  * No sensors yet? Leave SIMULATE_SENSORS at 1: the board invents a clean 230 V
  * mains wave and a 1000 W kettle-like current, so you can check the maths.
@@ -18,6 +19,7 @@
 
 #include <WiFi.h>
 #include <WiFiMulti.h>
+#include <WiFiUdp.h>
 #include <math.h>
 #include "secrets.h"  // your WiFi names/passwords (never uploaded to GitHub)
 
@@ -44,11 +46,13 @@ float V_CAL = 0.381f;   // volts per ADC step  (placeholder until calibrated)
 float I_CAL = 0.0197f;  // amps per ADC step   (placeholder until calibrated)
 
 const uint32_t WIFI_RETRY_MS = 10000;  // how often to retry if WiFi drops
+const uint16_t UDP_PORT      = 4210;   // the laptop's dashboard/receiver.py listens here (D23)
 
 // ============================================================
 // Globals
 // ============================================================
 WiFiMulti wifiMulti;
+WiFiUDP   udp;
 uint16_t  vRaw[BLOCK_SIZE];  // raw ADC readings, 0..4095
 uint16_t  iRaw[BLOCK_SIZE];
 uint32_t  lastWifiAttempt = 0;
@@ -193,6 +197,26 @@ void printMeasurement(const Measurement &m) {
 }
 
 // ============================================================
+// Step 5: send to the laptop (D23)
+// ============================================================
+// "Shouts" the reading to every device on the home network (UDP broadcast), so
+// the ESP32 never needs to know the laptop's address: works in both homes.
+// The message format matches dashboard/fake_plug.py exactly.
+// Takes about a millisecond and happens between snapshots, so sampling is undisturbed.
+void sendMeasurement(const Measurement &m) {
+  if (WiFi.status() != WL_CONNECTED) return;
+  char msg[192];
+  snprintf(msg, sizeof(msg),
+           "{\"t_ms\":%lu,\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"s\":%.1f,"
+           "\"pf\":%.2f,\"rate\":%.1f,\"late\":%lu}",
+           (unsigned long)millis(), m.vrms, m.irms, m.realPower, m.apparentPower,
+           m.powerFactor, m.actualRateHz, (unsigned long)m.worstLateUs);
+  udp.beginPacket(WiFi.broadcastIP(), UDP_PORT);
+  udp.print(msg);
+  udp.endPacket();
+}
+
+// ============================================================
 // Arduino entry points
 // ============================================================
 void setup() {
@@ -214,5 +238,6 @@ void loop() {
   captureBlock(worstLateUs, actualRateHz);                    // ~200 ms
   Measurement m = computePower(worstLateUs, actualRateHz);    // a few ms
   printMeasurement(m);
+  sendMeasurement(m);                                         // ~1 ms
   maintainWifi();
 }

@@ -19,7 +19,7 @@ A small device that sits between a wall socket and a power strip, measures the e
 | `firmware/plugprint/` | ESP32 Arduino sketch |
 | `Simulations/` | Falstad circuit simulation of the sensor front end |
 | `ml/` *(coming)* | Feature extraction + appliance classifier |
-| `dashboard/` *(coming)* | Live dashboard |
+| `dashboard/` | Live dashboard (Streamlit) + a fake plug for testing — see its README |
 
 ## Building the firmware
 

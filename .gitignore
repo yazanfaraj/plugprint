@@ -16,3 +16,6 @@ data/raw/
 Thumbs.db
 desktop.ini
 ~$*
+
+# Live readings recorded by dashboard/receiver.py (personal, large)
+data/live/
